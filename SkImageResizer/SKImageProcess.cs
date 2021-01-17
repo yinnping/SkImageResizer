@@ -50,6 +50,7 @@ namespace SkImageResizer
         {
             var cts = new CancellationTokenSource();
             Console.CancelKeyPress += (sender, e) => {
+                Console.WriteLine("CTRL + C CLICKED!");
                 cts.Cancel();
                 e.Cancel = true;
             };
@@ -60,6 +61,7 @@ namespace SkImageResizer
 
             List<Task> tasks = new List<Task>();
             var allFiles = FindImages(sourcePath);
+            var count = 1;
             foreach (var filePath in allFiles)
             {
                 var task = Task.Run(async () =>
@@ -78,6 +80,8 @@ namespace SkImageResizer
                     using var scaledImage = SKImage.FromBitmap(scaledBitmap);
                     using var data = await Task.Run(() => scaledImage.Encode(SKEncodedImageFormat.Jpeg, 100));
                     await File.WriteAllBytesAsync(Path.Combine(destPath, imgName + ".jpg"), data.ToArray());
+                    Console.WriteLine($"image {imgName} ... {count}/50");
+                    count += 1;
                 }, cts.Token);
                 tasks.Add(task);
             }
