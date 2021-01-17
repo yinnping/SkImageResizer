@@ -46,13 +46,8 @@ namespace SkImageResizer
             }
         }
 
-        public async Task ResizeImagesAsync(string sourcePath, string destPath, double scale)
+        public async Task ResizeImagesAsync(string sourcePath, string destPath, double scale, CancellationToken token = default)
         {
-            var cts = new CancellationTokenSource();
-            Console.CancelKeyPress += (sender, e) => {
-                cts.Cancel();
-                e.Cancel = true;
-            };
             if (!Directory.Exists(destPath))
             {
                 Directory.CreateDirectory(destPath);
@@ -63,7 +58,7 @@ namespace SkImageResizer
             foreach (var filePath in allFiles)
             {
                 var task = Task.Run(async () =>
-                {                    
+                {
                     var bitmap = await Task.Run(() => SKBitmap.Decode(filePath));
                     var imgPhoto = SKImage.FromBitmap(bitmap);
                     var imgName = Path.GetFileNameWithoutExtension(filePath);
@@ -74,26 +69,15 @@ namespace SkImageResizer
                     var destinationWidth = (int)(sourceWidth * scale);
                     var destinationHeight = (int)(sourceHeight * scale);
 
+                    token.ThrowIfCancellationRequested();
                     using var scaledBitmap = await Task.Run(() => bitmap.Resize(new SKImageInfo(destinationWidth, destinationHeight), SKFilterQuality.High));
                     using var scaledImage = SKImage.FromBitmap(scaledBitmap);
                     using var data = await Task.Run(() => scaledImage.Encode(SKEncodedImageFormat.Jpeg, 100));
                     await File.WriteAllBytesAsync(Path.Combine(destPath, imgName + ".jpg"), data.ToArray());
-                }, cts.Token);
+                });
                 tasks.Add(task);
             }
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (OperationCanceledException)
-            {                    
-                Console.WriteLine("使用者中斷程式執行，清空目標資料夾");
-                var imageProcess = new SKImageProcess();
-                Console.WriteLine("清空 output1 目錄");
-                imageProcess.Clean(Path.Combine(Environment.CurrentDirectory, "output1"));
-                Console.WriteLine("清空 output2 目錄");
-                imageProcess.Clean(Path.Combine(Environment.CurrentDirectory, "output2"));
-            }
+            await Task.WhenAll(tasks);
         }
 
         /// <summary>

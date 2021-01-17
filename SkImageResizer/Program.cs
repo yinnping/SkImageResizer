@@ -16,7 +16,12 @@ namespace SkImageResizer
             var sourcePath = Path.Combine(Environment.CurrentDirectory, "images");
             var destinationPath1 = Path.Combine(Environment.CurrentDirectory, "output1");
             var destinationPath2 = Path.Combine(Environment.CurrentDirectory, "output2");
-
+            var cts = new CancellationTokenSource();
+            
+            Console.CancelKeyPress += (sender, e) => {
+                cts.Cancel();
+                e.Cancel = true;
+            };
             // Sync
 
             imageProcess.Clean(destinationPath1);
@@ -33,14 +38,17 @@ namespace SkImageResizer
             imageProcess.Clean(destinationPath2);
 
             sw.Restart();
-
             try
             {
-                await imageProcess.ResizeImagesAsync(sourcePath, destinationPath2, 2.0);
+                await imageProcess.ResizeImagesAsync(sourcePath, destinationPath2, 2.0, cts.Token);
             }
             catch (OperationCanceledException ex)
             {
-                Console.WriteLine($"Canceled: {ex}");
+                Console.WriteLine("使用者中斷程式執行，清空目標資料夾");
+                Console.WriteLine("清空 output1 目錄");
+                imageProcess.Clean(Path.Combine(Environment.CurrentDirectory, "output1"));
+                Console.WriteLine("清空 output2 目錄");
+                imageProcess.Clean(Path.Combine(Environment.CurrentDirectory, "output2"));
             }
             catch (Exception ex)
             {
